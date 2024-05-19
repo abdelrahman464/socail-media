@@ -20,14 +20,6 @@ const commentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ^find => it mean if part of of teh word contains find
-commentSchema.pre(/^find/, function (next) {
-  // this => query
-  this.populate({
-    path: "user",
-    select: "firstName ",
-  });
-  next();
-});
+
 const Comment = mongoose.model("Comment", commentSchema);
 module.exports = Comment;

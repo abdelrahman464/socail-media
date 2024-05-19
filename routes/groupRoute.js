@@ -1,41 +1,58 @@
 const express = require("express");
 
 const authServices = require("../services/authServices");
-const { deleteGroupValidator } = require("../utils/validators/groupValidator");
-const {
-  createGroup,
-  getGroup,
-  getAllGroups,
-  updateGroup,
-  sendGroupRequest,
-  deleteGroup,
-  leaveGroup,
-} = require("../services/groupServices");
+const groupValidator = require("../utils/validators/groupValidator");
+const requestValidator = require("../utils/validators/requestValidator");
+const groupServices = require("../services/groupServices");
 
 const router = express.Router();
 
 router
-  .route("/")
+  .route("/myGroups")
   .get(
     authServices.protect,
-    authServices.allowedTo( "admin"),
-    getAllGroups
-  )
-  .post(authServices.protect, authServices.allowedTo("user"), createGroup);
-router
-  .route("/:id")
-  .get(authServices.protect, authServices.allowedTo("user", "admin"), getGroup)
-  .put(authServices.protect, authServices.allowedTo("admin"), updateGroup)
-  .delete(
-    authServices.protect,
-    authServices.allowedTo("user", "admin"),
-    deleteGroupValidator,
-    deleteGroup
+    groupServices.filterGroupsForLoggedUser,
+    groupServices.getMyGroups
   );
 router
-  .route("/:id/request")
-  .post(authServices.protect, authServices.allowedTo("user"), sendGroupRequest);
+  .route("/")
+  .get(authServices.protect, groupServices.getAll)
+  .post(
+    authServices.protect,
+    authServices.allowedTo("user"),
+    groupServices.setCreatorIdToBody,
+    groupValidator.createGroupValidator,
+    groupServices.create
+  );
 router
-  .route("/:id/leave")
-  .post(authServices.protect, authServices.allowedTo("user"), leaveGroup);
+  .route("/:id")
+  .get(
+    authServices.protect,
+    groupValidator.getGroupValidator,
+    groupServices.getOne
+  )
+  .put(
+    authServices.protect,
+    groupValidator.actionGroupValidator,
+    groupServices.updateGroup
+  )
+  .delete(
+    authServices.protect,
+    groupValidator.actionGroupValidator,
+    groupServices.deleteGroup
+  );
+router
+  .route("/:id/:action")
+  .put(
+    authServices.protect,
+    requestValidator.actionToGroupRequestValidator,
+    groupServices.actionGroupRequest
+  );
+router
+  .route("/:id/requests")
+  .get(
+    authServices.protect,
+    groupServices.filterGroupsRequestForLoggedUser,
+    groupServices.getAllGroupRequests
+  );
 module.exports = router;

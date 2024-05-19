@@ -5,7 +5,7 @@ const validatorMiddleware = require("../../middlewares/validatorMiddleware");
 exports.signupValidator = [
   check("firstName")
     .notEmpty()
-    .withMessage("name required")
+    .withMessage("first name required")
     .isLength({ min: 2 })
     .withMessage("too short User name")
     .isLength({ max: 100 })
@@ -13,7 +13,7 @@ exports.signupValidator = [
 
   check("lastName")
     .notEmpty()
-    .withMessage("name required")
+    .withMessage("last name required")
     .isLength({ min: 2 })
     .withMessage("too short User name")
     .isLength({ max: 100 })
@@ -31,7 +31,7 @@ exports.signupValidator = [
         }
       })
     ),
-    
+
   check("password")
     .notEmpty()
     .withMessage("password required")

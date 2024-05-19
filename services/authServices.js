@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const passport = require("passport");
-const GoogleStategy = require("passport-google-oauth20");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const asyncHandler = require("express-async-handler");
@@ -9,6 +9,61 @@ const ApiError = require("../utils/apiError");
 const sendEmail = require("../utils/sendEmail");
 const generateToken = require("../utils/generateToken");
 
+
+// @desc    User Register,login with Google
+// @route   POST /api/v1/auth/google
+// @access  Public
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+      passReqToCallback: true,
+    },
+    asyncHandler(async (req, accessToken, refreshToken, profile, done) => {
+      // Find a user by google.id or email in the database
+      let existingUser = await User.findOne({
+        $or: [{ "google.id": profile.id }, { email: profile.emails[0].value }],
+      });
+
+      if (existingUser) {
+        // Check if the user has logged in with Google before
+        if (!existingUser.google || !existingUser.google.id) {
+          // The user exists by email but hasn't logged in with Google before, so update the record
+          await User.updateOne(
+            { _id: existingUser._id }, // filter
+            {
+              // update
+              $set: {
+                "google.id": profile.id,
+                "google.email": profile.emails[0].value,
+                isOAuthUser: true,
+              },
+            }
+          );
+          // After update, it's a good idea to refresh the existingUser object if you plan to use it right after
+          existingUser = await User.findById(existingUser._id);
+        }
+        // Generate a JWT for the (possibly updated) existing user
+        const token = generateToken(existingUser._id);
+        return done(null, { user: existingUser, token }); // Include token in the user object
+      }
+      // No user exists by Google ID or email, create a new user
+      const newUser = await User.create({
+        username: profile.displayName,
+        email: profile.emails[0].value,
+        google: {
+          id: profile.id,
+          email: profile.emails[0].value,
+        },
+        isOAuthUser: true,
+      });
+      const token = generateToken(newUser._id);
+      done(null, { user: newUser, token }); // Include token in the user object
+    })
+  )
+);
 //@desc signup
 //@route POST /api/v1/auth/signup
 //@access public
@@ -210,46 +265,3 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   res.status(200).json({ token });
 });
 
-
-//@desc  Google Oauth this is passport setup
-passport.use(
-  new GoogleStategy(
-    {
-      //options
-      clientID: process.env.CLIENTID,
-      clientSecret: process.env.CLIENTSECRET,
-      callbackURL: "/api/v1/auth/google/redirect",
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        //check if user exist
-        const user = await User.findOne({ googleId: profile.id });
-
-        if (user) {
-          // Pass the person object to the done function
-          return done(null, user);
-        }
-        if (!user) {
-          const cuurentUser = await User.findOne({
-            email: profile.emails[0].value,
-          });
-          if (cuurentUser) {
-            return done(new ApiError("E-mail already in use", 409), null);
-          }
-          if (!cuurentUser) {
-            // Create a new user if not found
-            const newUser = await User.create({
-              googleId: profile.id,
-              firstName: profile.displayName,
-              email: profile.emails[0].value,
-            });
-            // Pass the person object to the done function
-            return done(null, newUser);
-          }
-        }
-      } catch (err) {
-        return done(new ApiError(err, 401), null);
-      }
-    }
-  )
-);

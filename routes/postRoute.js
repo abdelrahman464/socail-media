@@ -1,26 +1,45 @@
 const express = require("express");
-const postCommentRoute = require("./postCommentRoute");
-const postReactRoute = require("./postReactRoute");
 
+const { idValidator } = require("../utils/validators/idValidator");
+const postValidator = require("../utils/validators/postValidator");
 const authServices = require("../services/authServices");
-const {
-  createPost,
-  sharePost,
-  getALlPosts,
-  getPost,
-} = require("../services/postServices");
+const postServices = require("../services/postServices");
 
 const router = express.Router();
-router.use("/:postId/postComments", postCommentRoute);
-router.use("/:postId/postReacts", postReactRoute);
 
 router
   .route("/")
-  .get(getALlPosts)
-  .post(authServices.protect, authServices.allowedTo("user"), createPost);
+  .get(postServices.getALlPosts)
+  .post(
+    authServices.protect,
+    postServices.setuserIdToBody,
+    postValidator.createPostValidator,
+    postServices.createPost
+  );
+router
+  .route("/:id/share/:groupId?")
+  .post(
+    authServices.protect,
+    authServices.allowedTo("user"),
+    idValidator("id"),
+    postValidator.sharePostValidator,
+    postServices.sharePost
+  );
 router
   .route("/:id")
-  .post(authServices.protect, authServices.allowedTo("user"), sharePost)
-  .get(authServices.protect, authServices.allowedTo("user"), getPost);
+  .get(
+    authServices.protect,
+    authServices.allowedTo("user"),
+    idValidator("id"),
+    postServices.getPost
+  );
+router
+  .route("/userPosts/:userId")
+  .get(
+    authServices.protect,
+    idValidator("userId"),
+    postServices.filtertoGetUserPostsForLoggedUser,
+    postServices.getALlPosts
+  );
 
 module.exports = router;

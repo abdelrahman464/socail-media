@@ -1,34 +1,34 @@
 const multer = require("multer");
 const ApiError = require("../utils/apiError");
 
+// Configure multer for image, PDF, and Word document upload
 const multerOptions = () => {
-  //disk stroge engine
-  // const multerStorage = multer.diskStorage({
-  //   destination: function (req, file, cb) {
-  //     cb(null, "uploads/categories");
-  //   },
-  //   filename: function (req, file, cb) {
-  //     const ext = file.mimetype.split("/")[1];
-  //     const filename = `cateogry-${uuidv4()}-${Date.now()}.${ext}`;
-  //     cb(null, filename);
-  //   },
-  // });
-
-  //memory stroge engine
   const multerStorage = multer.memoryStorage();
 
-  const multterFilter = function (req, file, cb) {
-    if (file.mimetype.startsWith("image")) {
+  const multerFilter = (req, file, cb) => {
+    // Allowed MIME types
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "application/pdf",
+      "application/msword", // For .doc
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // For .docx
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new ApiError("Only image Allowed", 400), false);
+      cb(new ApiError("Unsupported file type.", 400), false);
     }
   };
-  const upload = multer({ storage: multerStorage, fileFilter: multterFilter });
-  return upload;
+
+  return multer({ storage: multerStorage, fileFilter: multerFilter });
 };
 
-exports.uploadSingleImage = (fieldName) => multerOptions().single(fieldName);
+// Upload a single file field
+exports.uploadSingleFile = (fieldName) => multerOptions().single(fieldName);
 
-exports.uploadMixOfImages = (arrayOfFields) =>
+// Upload mixed file types for specified fields
+exports.uploadMixOfFiles = (arrayOfFields) =>
   multerOptions().fields(arrayOfFields);

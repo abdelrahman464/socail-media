@@ -23,6 +23,8 @@ const {
   activeLoggedUser,
   uploadUserImages,
   resizeImage,
+  toggleLockMyProfile,
+  getUserProfile,
 } = require("../services/userService");
 
 const router = express.Router();
@@ -30,6 +32,8 @@ const router = express.Router();
 router.get("/getMe", authServices.protect, getLoggedUserData, getUser);
 router.delete("/deleteMe", authServices.protect, deleteLoggedUser);
 router.put("/activeMe", authServices.protect, activeLoggedUser);
+router.put("/lockProfile", authServices.protect, toggleLockMyProfile);
+router.put("/:id/profile", authServices.protect, getUserProfile);
 router.put(
   "/changeMyPassword",
   authServices.protect,
@@ -54,11 +58,7 @@ router.put(
 
 router
   .route("/")
-  .get(
-    authServices.protect,
-    authServices.allowedTo("admin"),
-    getUsers
-  )
+  .get(authServices.protect, authServices.allowedTo("admin"), getUsers)
   .post(
     authServices.protect,
     authServices.allowedTo("admin"),

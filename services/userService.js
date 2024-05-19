@@ -6,51 +6,68 @@ const ApiError = require("../utils/apiError");
 const factory = require("./handllerFactory");
 const User = require("../models/userModel");
 const generateToken = require("../utils/generateToken");
-const { uploadMixOfImages } = require("../middlewares/uploadImageMiddleware");
+const { uploadMixOfFiles } = require("../middlewares/uploadImageMiddleware");
 
 //upload user image
-exports.uploadUserImages = uploadMixOfImages([
+exports.uploadUserImages = uploadMixOfFiles([
   {
     name: "profileImg",
     maxCount: 1,
   },
   {
     name: "coverImgs",
-    maxCount: 3,
+    maxCount: 10,
   },
 ]);
 //image processing
 exports.resizeImage = asyncHandler(async (req, res, next) => {
   // Image processing for profileImg
-  if (req.files.profileImg) {
-    const profileImgFileName = `user-${uuidv4()}-${Date.now()}-profile.jpeg`;
+  if (
+    req.files.profileImg &&
+    req.files.profileImg[0].mimetype.startsWith("image/")
+  ) {
+    const imageFileName = `profileImg-${uuidv4()}-${Date.now()}.webp`;
 
     await sharp(req.files.profileImg[0].buffer)
-      .resize(600, 600)
-      .toFormat("jpeg")
-      .jpeg({ quality: 95 })
-      .toFile(`uploads/users/${profileImgFileName}`);
+      .toFormat("webp") // Convert to WebP
+      .webp({ quality: 95 })
+      .toFile(`uploads/users/${imageFileName}`);
 
-    // Save image into our db
-    req.body.profileImg = profileImgFileName;
+    // Save profileImg file name in the request body for database saving
+    req.body.profileImg = imageFileName;
+  } else if (req.files.profileImg) {
+    return next(new ApiError("profile Image is not an image file", 400));
   }
-  // Image processing for imageCover
+
+  // Image processing for images
   if (req.files.coverImgs) {
-    req.body.coverImgs = [];
-    await Promise.all(
-      req.files.coverImgs.map(async (img, index) => {
-        const imageName = `user-${uuidv4()}-${Date.now()}-${index + 1}.jpeg`;
+    const imageProcessingPromises = req.files.coverImgs.map(
+      async (img, index) => {
+        if (!img.mimetype.startsWith("image/")) {
+          return next(
+            new ApiError(`File ${index + 1} is not an image file.`, 400)
+          );
+        }
+
+        const imageName = `coverImgs-${uuidv4()}-${Date.now()}-${
+          index + 1
+        }-cover.webp`;
 
         await sharp(img.buffer)
-          .resize(2000, 1333)
-          .toFormat("jpeg")
-          .jpeg({ quality: 95 })
+          .toFormat("webp") // Convert to WebP
+          .webp({ quality: 95 })
           .toFile(`uploads/users/${imageName}`);
 
-        // Save image into our db
-        req.body.coverImgs.push(imageName);
-      })
+        return imageName;
+      }
     );
+
+    try {
+      const processedImages = await Promise.all(imageProcessingPromises);
+      req.body.coverImgs = processedImages;
+    } catch (error) {
+      return next(error);
+    }
   }
 
   next();
@@ -174,4 +191,23 @@ exports.deleteLoggedUser = asyncHandler(async (req, res, next) => {
 exports.activeLoggedUser = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user._id, { active: true });
   res.status(201).json({ data: "success" });
+});
+//@desc toggle lock logged userProfile
+//@route PUT /api/v1/user/lockProfile
+//@access private/protect
+exports.toggleLockMyProfile = asyncHandler(async (req, res, next) => {
+  await User.findByIdAndUpdate(req.user._id, {
+    lockedProfile: !req.user.lockedProfile,
+  });
+  res.status(201).json({ data: "success" });
+});
+//@descget user profile
+//@route PUT /api/v1/user/:id/profile
+//@access private/protect
+exports.getUserProfile = asyncHandler(async (req, res, next) => {
+  const user = req.params.id;
+  const userProfile = await User.findById(user).select(
+    "-password -passwordResetCode -passwordResetExpires -passwordResetVerified -passwordChangedAt -isOAuthUser -__v -_id -active -lockedProfile -role -email -google  -updatedAt"
+  );
+  res.status(201).json({ data: "success", userProfile });
 });

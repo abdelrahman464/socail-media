@@ -7,7 +7,7 @@ const userShcema = new mongoose.Schema(
       type: String,
       required: [true, "firstName required"],
     },
-    lastName: String,
+    lastName: { type: String, required: [true, "lastName required"] },
     email: {
       type: String,
       required: [true, "email required"],
@@ -15,16 +15,26 @@ const userShcema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    googleId: {
-      type: String,
-      unique: true,
-    },
     phone: String,
     profileImg: String,
     coverImgs: [String],
+    google: {
+      id: String,
+      email: String,
+    },
     password: {
       type: String,
+      required: [
+        function () {
+          return !this.isOAuthUser;
+        },
+        "password required",
+      ],
       minlength: [8, "too short Password"],
+    },
+    isOAuthUser: {
+      type: Boolean,
+      default: false,
     },
     passwordChangedAt: Date,
     passwordResetCode: String,
@@ -35,27 +45,25 @@ const userShcema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+    lockedProfile: {
+      type: Boolean,
+      default: false,
+    },
     active: {
       type: Boolean,
       default: true,
     },
     headline: {
       type: String,
-      default: "",
+      default: undefined,
     },
     summary: {
       type: String,
-      default: "",
+      default: undefined,
     },
     skills: [
       {
         type: String,
-      },
-    ],
-    wishlist: [
-      {
-        type: mongoose.Schema.ObjectId,
-        ref: "Jobs",
       },
     ],
     experience: [
@@ -63,25 +71,30 @@ const userShcema = new mongoose.Schema(
         title: {
           type: String,
           required: true,
+          default: undefined,
         },
         company: {
           type: String,
           required: true,
+          default: undefined,
         },
         location: {
           type: String,
           required: true,
+          default: undefined,
         },
         startDate: {
           type: Date,
           required: true,
+          default: undefined,
         },
         endDate: {
           type: Date,
+          default: undefined,
         },
         description: {
           type: String,
-          default: "",
+          default: undefined,
         },
       },
     ],
@@ -90,56 +103,31 @@ const userShcema = new mongoose.Schema(
         school: {
           type: String,
           required: true,
+          default: undefined,
         },
         degree: {
           type: String,
           required: true,
+          default: undefined,
         },
         fieldOfStudy: {
           type: String,
           required: true,
+          default: undefined,
         },
         startDate: {
           type: Date,
           required: true,
+          default: undefined,
         },
         endDate: {
           type: Date,
+          default: undefined,
         },
         description: {
           type: String,
-          default: "",
+          default: undefined,
         },
-      },
-    ],
-    connections: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    connectionRequests: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "FriendRequest",
-      },
-    ],
-    groups: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Group",
-      },
-    ],
-    groupRequests: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "GroupRequest",
-      },
-    ],
-    posts: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Post",
       },
     ],
   },

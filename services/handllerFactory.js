@@ -19,31 +19,60 @@ exports.createOne = (Model) =>
     res.status(201).json({ document });
   });
 
-exports.getOne = (Model, populationOt) =>
-  asyncHandler(async (req, res, next) => {
-    const { id } = req.params;
-    //1-build query
-    let query = Model.findById(id);
-    if (populationOt) {
-      query = query.populate(populationOt);
-    }
-    //2- excute query
-    const document = await query;
 
-    if (!document) {
-      return next(new ApiError(`Document not found`, 404));
-    }
-    res.status(200).json({ success: true, document });
-  });
+  exports.getOne = (Model, populationOt) =>
+    asyncHandler(async (req, res, next) => {
+      const { id } = req.params;
+  
+      // 1 - Build query
+      let query = Model.findById(id);
+  
+      // Handle population based on whether it's an array or a single option
+      if (populationOt) {
+        if (Array.isArray(populationOt)) {
+          // If populationOt is an array, populate each specified path
+          populationOt.forEach(popOption => {
+            query = query.populate(popOption);
+          });
+        } else {
+          // Single populate object or string
+          query = query.populate(populationOt);
+        }
+      }
+  
+      // 2 - Execute query
+      const document = await query;
+  
+      if (!document) {
+        return next(new ApiError(`Document not found`, 404));
+      }
+  
+      res.status(200).json({ success: true, document });
+    });
 
-exports.getALl = (Model, modelName = "") =>
+// eslint-disable-next-line default-param-last
+exports.getALl = (Model, modelName = "", populationOt) =>
   asyncHandler(async (req, res) => {
     let filter = {};
     if (req.filterObj) {
       filter = req.filterObj;
     }
+    let query = Model.find(filter);
+
+    // Check if population options are provided and handle accordingly
+    if (populationOt) {
+      if (Array.isArray(populationOt)) {
+        // If it's an array, populate each one
+        populationOt.forEach((popOption) => {
+          query = query.populate(popOption);
+        });
+      } else {
+        // Single populate object or string
+        query = query.populate(populationOt);
+      }
+    }
     const documentsCounts = await Model.countDocuments();
-    const apiFeatures = new ApiFeatures(Model.find(filter), req.query)
+    const apiFeatures = new ApiFeatures(query, req.query)
       .paginate(documentsCounts)
       .filter()
       .search(modelName)
@@ -55,9 +84,8 @@ exports.getALl = (Model, modelName = "") =>
 
     res
       .status(200)
-      .json({ results: documents.length, paginationResult, documents });
+      .json({ results: documents.length, paginationResult, data: documents });
   });
-
 exports.deleteOne = (Model) =>
   asyncHandler(async (req, res, next) => {
     const { id } = req.params;
